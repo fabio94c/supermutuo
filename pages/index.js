@@ -1,173 +1,141 @@
 import { useState } from 'react';
+import Head from 'next/head';
 
-function calcolaRata(importo, tassoAnnuo, durataAnni) {
-  const r = tassoAnnuo / 12;
-  const n = durataAnni * 12;
+function calcolaRata(importo, tasso, durata) {
+  const r = tasso / 12;
+  const n = durata * 12;
   return (importo * r) / (1 - Math.pow(1 + r, -n));
 }
 
 export default function Home() {
   const [form, setForm] = useState({
-    reddito1: '',
-    rata1: '',
-    dueRichiedenti: false,
-    reddito2: '',
-    rata2: '',
-    eta: '',
-    durata: '',
-    importo: '',
-    immobile: '',
-    carico: '1',
-    primaCasa: false,
-    under36: false
+    reddito1: '', rata1: '',
+    due: false, reddito2: '', rata2: '',
+    eta: '', durata: '', importo: '', immobile: '',
+    carico: '1', primaCasa: false, under36: false
   });
 
   const [esiti, setEsiti] = useState([]);
 
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setForm({
-      ...form,
-      [name]: type === 'checkbox' ? checked : value
-    });
+  const cambia = (e) => {
+    const { name, value, checked, type } = e.target;
+    setForm({ ...form, [name]: type === 'checkbox' ? checked : value });
   };
 
-  const valuta = () => {
-    const reddito1 = parseFloat(form.reddito1) || 0;
-    const reddito2 = form.dueRichiedenti ? parseFloat(form.reddito2) || 0 : 0;
-    const rata1 = parseFloat(form.rata1) || 0;
-    const rata2 = form.dueRichiedenti ? parseFloat(form.rata2) || 0 : 0;
-    const redditoTot = reddito1 + reddito2;
-    const rataTot = rata1 + rata2;
-
+  const calcola = () => {
+    const r1 = parseFloat(form.reddito1) || 0;
+    const r2 = form.due ? parseFloat(form.reddito2) || 0 : 0;
+    const red = r1 + r2;
+    const ra1 = parseFloat(form.rata1) || 0;
+    const ra2 = form.due ? parseFloat(form.rata2) || 0 : 0;
+    const ratetot = ra1 + ra2;
     const eta = parseInt(form.eta);
-    const durata = parseInt(form.durata);
-    const importo = parseFloat(form.importo);
-    const immobile = parseFloat(form.immobile);
+    const fine = eta + parseInt(form.durata);
     const carico = parseInt(form.carico);
-    const ltv = (importo / immobile) * 100;
-    const redditoDisponibile = redditoTot - rataTot;
-    const etaFine = eta + durata;
+    const immobile = parseFloat(form.immobile);
+    const mutuo = parseFloat(form.importo);
+    const ltv = (mutuo / immobile) * 100;
+    const redDisp = red - ratetot;
 
     const banche = [
       {
-        nome: 'ING',
-        tasso: 0.039,
-        maxRr: 0.55,
-        soglia: [617, 902, 1158, 1402, 1629][carico - 1] || 1629,
-        maxLtv: 95
+        nome: 'ING', tasso: 0.039, maxRr: 0.55, maxLtv: 95,
+        soglia: [617, 902, 1158, 1402, 1629][carico - 1] || 1629
       },
       {
-        nome: 'CheBanca',
-        tasso: 0.032,
-        maxRr: 0.4,
-        soglia: [734, 1035, 1304, 1572, 1816][carico - 1] || 1816,
-        maxLtv: 95
+        nome: 'CheBanca', tasso: 0.032, maxRr: 0.4, maxLtv: 95,
+        soglia: [734, 1035, 1304, 1572, 1816][carico - 1] || 1816
       },
       {
-        nome: 'MPS',
-        tasso: 0.031,
-        maxRr: 0.33,
-        soglia: [800, 1000, 1200, 1350, 1600][carico - 1] || 1600,
-        maxLtv: form.primaCasa ? 95 : 80,
-        maxEta: 75
+        nome: 'MPS', tasso: 0.031, maxRr: 0.33, maxLtv: form.primaCasa ? 95 : 80, maxEta: 75,
+        soglia: [800, 1000, 1200, 1350, 1600][carico - 1] || 1600
       },
       {
         nome: 'BNL',
         tasso: ltv > 80 ? (form.under36 ? 0.0325 : 0.0345) : 0.032,
-        maxRr:
-          ltv > 80
-            ? form.dueRichiedenti
-              ? 0.35
-              : 0.3
-            : form.dueRichiedenti
-            ? 0.45
-            : 0.4,
-        soglia: 1000 + (carico - 1) * 250,
-        maxLtv: 95
+        maxRr: ltv > 80 ? (form.due ? 0.35 : 0.3) : (form.due ? 0.45 : 0.4),
+        maxLtv: 95,
+        soglia: 1000 + (carico - 1) * 250
       },
       {
-        nome: 'Banco di Sardegna',
-        tasso: 0.034,
-        maxRr: 0.4,
-        soglia: [800, 1000, 1200, 1350, 1600][carico - 1] || 1600,
-        maxLtv: 95
+        nome: 'Banco di Sardegna', tasso: 0.034, maxRr: 0.4, maxLtv: 95,
+        soglia: [800, 1000, 1200, 1350, 1600][carico - 1] || 1600
       }
     ];
 
-    const risultati = banche.map((banca) => {
-      const rata = calcolaRata(importo, banca.tasso, durata);
-      const rr = rata / redditoTot;
-      const sogliaOk = redditoDisponibile - rata >= banca.soglia;
-      const etaOk = banca.maxEta ? etaFine <= banca.maxEta : true;
-      const fattibile = rr <= banca.maxRr && ltv <= banca.maxLtv && sogliaOk && etaOk;
-
+    const risultati = banche.map(b => {
+      const rata = calcolaRata(mutuo, b.tasso, parseInt(form.durata));
+      const rr = rata / red;
+      const esito = rr <= b.maxRr && ltv <= b.maxLtv && (redDisp - rata) >= b.soglia && (!b.maxEta || fine <= b.maxEta);
       return {
-        banca: banca.nome,
-        tasso: (banca.tasso * 100).toFixed(2) + '%',
+        banca: b.nome,
+        tasso: (b.tasso * 100).toFixed(2) + '%',
         rata: rata.toFixed(2),
         ltv: ltv.toFixed(1) + '%',
-        fattibile
+        fattibile: esito
       };
     });
-
     setEsiti(risultati);
   };
 
   return (
-    <div style={{ maxWidth: 700, margin: '0 auto', fontFamily: 'Arial', padding: 20 }}>
-      <h1>Preventivatore Mutuo</h1>
+    <>
+      <Head>
+        <title>SuperMutuo - Simulazione Mutuo</title>
+      </Head>
+      <main style={{ maxWidth: 720, margin: '0 auto', padding: '2rem', fontFamily: 'sans-serif' }}>
+        <h1 style={{ fontSize: '1.8rem', marginBottom: '1rem' }}>💼 Simulatore Mutuo Professionale</h1>
 
-      <label>Reddito richiedente 1</label>
-      <input name="reddito1" onChange={handleChange} value={form.reddito1} />
-      <label>Rata in corso 1</label>
-      <input name="rata1" onChange={handleChange} value={form.rata1} />
+        <label>Reddito mensile richiedente 1</label>
+        <input name="reddito1" value={form.reddito1} onChange={cambia} />
+        <label>Rata in corso richiedente 1</label>
+        <input name="rata1" value={form.rata1} onChange={cambia} />
 
-      <label>
-        <input type="checkbox" name="dueRichiedenti" checked={form.dueRichiedenti} onChange={handleChange} /> Aggiungi secondo richiedente
-      </label>
+        <label>
+          <input type="checkbox" name="due" checked={form.due} onChange={cambia} /> Aggiungi secondo richiedente
+        </label>
 
-      {form.dueRichiedenti && (
-        <>
-          <label>Reddito richiedente 2</label>
-          <input name="reddito2" onChange={handleChange} value={form.reddito2} />
-          <label>Rata in corso 2</label>
-          <input name="rata2" onChange={handleChange} value={form.rata2} />
-        </>
-      )}
+        {form.due && (
+          <>
+            <label>Reddito mensile richiedente 2</label>
+            <input name="reddito2" value={form.reddito2} onChange={cambia} />
+            <label>Rata in corso richiedente 2</label>
+            <input name="rata2" value={form.rata2} onChange={cambia} />
+          </>
+        )}
 
-      <label>Età richiedente più anziano</label>
-      <input name="eta" onChange={handleChange} value={form.eta} />
-      <label>Durata mutuo (anni)</label>
-      <input name="durata" onChange={handleChange} value={form.durata} />
-      <label>Importo mutuo richiesto</label>
-      <input name="importo" onChange={handleChange} value={form.importo} />
-      <label>Valore immobile</label>
-      <input name="immobile" onChange={handleChange} value={form.immobile} />
+        <label>Età richiedente più anziano</label>
+        <input name="eta" value={form.eta} onChange={cambia} />
+        <label>Durata mutuo (anni)</label>
+        <input name="durata" value={form.durata} onChange={cambia} />
+        <label>Importo mutuo richiesto</label>
+        <input name="importo" value={form.importo} onChange={cambia} />
+        <label>Valore immobile</label>
+        <input name="immobile" value={form.immobile} onChange={cambia} />
 
-      <label>Persone a carico totali</label>
-      <input name="carico" onChange={handleChange} value={form.carico} />
+        <label>Persone a carico</label>
+        <input name="carico" value={form.carico} onChange={cambia} />
 
-      <label>
-        <input type="checkbox" name="primaCasa" checked={form.primaCasa} onChange={handleChange} /> Prima casa
-      </label>
-      <label>
-        <input type="checkbox" name="under36" checked={form.under36} onChange={handleChange} /> Under 36
-      </label>
+        <label><input type="checkbox" name="primaCasa" checked={form.primaCasa} onChange={cambia} /> Prima casa</label>
+        <label><input type="checkbox" name="under36" checked={form.under36} onChange={cambia} /> Under 36</label>
 
-      <button style={{ marginTop: 20 }} onClick={valuta}>Calcola</button>
+        <button onClick={calcola} style={{ marginTop: 20, padding: '10px 20px' }}>Calcola</button>
 
-      <div style={{ marginTop: 30 }}>
-        {esiti.map((e, i) => (
-          <div key={i} style={{ border: '1px solid #ccc', padding: 10, marginBottom: 10 }}>
-            <strong>{e.banca}</strong><br />
-            Tasso: {e.tasso}<br />
-            Rata stimata: €{e.rata}<br />
-            LTV: {e.ltv}<br />
-            Esito: <span style={{ color: e.fattibile ? 'green' : 'red', fontWeight: 'bold' }}>{e.fattibile ? '✅ Fattibile' : '❌ Non Fattibile'}</span>
+        {esiti.length > 0 && (
+          <div style={{ marginTop: 30 }}>
+            <h2>Risultati</h2>
+            {esiti.map((e, i) => (
+              <div key={i} style={{ border: '1px solid #ccc', borderLeft: `5px solid ${e.fattibile ? 'green' : 'red'}`, padding: 10, marginBottom: 10 }}>
+                <strong>{e.banca}</strong><br />
+                Tasso: {e.tasso}<br />
+                Rata: €{e.rata}<br />
+                LTV: {e.ltv}<br />
+                Esito: <span style={{ fontWeight: 'bold', color: e.fattibile ? 'green' : 'red' }}>{e.fattibile ? 'Fattibile' : 'Non Fattibile'}</span>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-    </div>
+        )}
+      </main>
+    </>
   );
 }
