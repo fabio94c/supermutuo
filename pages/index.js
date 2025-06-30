@@ -83,54 +83,49 @@ export default function Home() {
       <Head>
         <title>SuperMutuo - Simulazione Mutuo</title>
       </Head>
-      <main style={{ maxWidth: 720, margin: '0 auto', padding: '2rem', fontFamily: 'sans-serif' }}>
-        <h1 style={{ fontSize: '1.8rem', marginBottom: '1rem' }}>💼 Simulatore Mutuo Professionale</h1>
-
-        <label>Reddito mensile richiedente 1</label>
-        <input name="reddito1" value={form.reddito1} onChange={cambia} />
-        <label>Rata in corso richiedente 1</label>
-        <input name="rata1" value={form.rata1} onChange={cambia} />
-
-        <label>
-          <input type="checkbox" name="due" checked={form.due} onChange={cambia} /> Aggiungi secondo richiedente
-        </label>
-
-        {form.due && (
-          <>
-            <label>Reddito mensile richiedente 2</label>
-            <input name="reddito2" value={form.reddito2} onChange={cambia} />
-            <label>Rata in corso richiedente 2</label>
-            <input name="rata2" value={form.rata2} onChange={cambia} />
-          </>
-        )}
-
-        <label>Età richiedente più anziano</label>
-        <input name="eta" value={form.eta} onChange={cambia} />
-        <label>Durata mutuo (anni)</label>
-        <input name="durata" value={form.durata} onChange={cambia} />
-        <label>Importo mutuo richiesto</label>
-        <input name="importo" value={form.importo} onChange={cambia} />
-        <label>Valore immobile</label>
-        <input name="immobile" value={form.immobile} onChange={cambia} />
-
-        <label>Persone a carico</label>
-        <input name="carico" value={form.carico} onChange={cambia} />
-
-        <label><input type="checkbox" name="primaCasa" checked={form.primaCasa} onChange={cambia} /> Prima casa</label>
-        <label><input type="checkbox" name="under36" checked={form.under36} onChange={cambia} /> Under 36</label>
-
-        <button onClick={calcola} style={{ marginTop: 20, padding: '10px 20px' }}>Calcola</button>
+      <main style={{ maxWidth: 600, margin: '0 auto', padding: '2rem', fontFamily: 'Arial, sans-serif', background: '#f4f9ff', borderRadius: '10px', boxShadow: '0 2px 10px rgba(0,0,0,0.1)' }}>
+        <h1 style={{ fontSize: '1.8rem', marginBottom: '1rem', color: '#0070f3' }}>💼 Simulatore Mutuo</h1>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <label>Reddito mensile richiedente 1</label>
+          <input name="reddito1" value={form.reddito1} onChange={cambia} />
+          <label>Rata in corso richiedente 1</label>
+          <input name="rata1" value={form.rata1} onChange={cambia} />
+          <label>
+            <input type="checkbox" name="due" checked={form.due} onChange={cambia} /> Aggiungi secondo richiedente
+          </label>
+          {form.due && (
+            <>
+              <label>Reddito mensile richiedente 2</label>
+              <input name="reddito2" value={form.reddito2} onChange={cambia} />
+              <label>Rata in corso richiedente 2</label>
+              <input name="rata2" value={form.rata2} onChange={cambia} />
+            </>
+          )}
+          <label>Età richiedente più anziano</label>
+          <input name="eta" value={form.eta} onChange={cambia} />
+          <label>Durata mutuo (anni)</label>
+          <input name="durata" value={form.durata} onChange={cambia} />
+          <label>Importo mutuo richiesto</label>
+          <input name="importo" value={form.importo} onChange={cambia} />
+          <label>Valore immobile</label>
+          <input name="immobile" value={form.immobile} onChange={cambia} />
+          <label>Persone a carico</label>
+          <input name="carico" value={form.carico} onChange={cambia} />
+          <label><input type="checkbox" name="primaCasa" checked={form.primaCasa} onChange={cambia} /> Prima casa</label>
+          <label><input type="checkbox" name="under36" checked={form.under36} onChange={cambia} /> Under 36</label>
+          <button onClick={calcola} style={{ backgroundColor: '#0070f3', color: 'white', padding: '10px 20px', border: 'none', borderRadius: '5px', cursor: 'pointer', marginTop: '20px' }}>Calcola</button>
+        </div>
 
         {esiti.length > 0 && (
           <div style={{ marginTop: 30 }}>
-            <h2>Risultati</h2>
+            <h2 style={{ color: '#0070f3' }}>Risultati</h2>
             {esiti.map((e, i) => (
-              <div key={i} style={{ border: '1px solid #ccc', borderLeft: `5px solid ${e.fattibile ? 'green' : 'red'}`, padding: 10, marginBottom: 10 }}>
+              <div key={i} style={{ backgroundColor: 'white', borderLeft: `5px solid ${e.fattibile ? 'green' : 'red'}`, padding: 10, marginBottom: 10, borderRadius: '5px' }}>
                 <strong>{e.banca}</strong><br />
-                Tasso: {e.tasso}<br />
-                Rata: €{e.rata}<br />
-                LTV: {e.ltv}<br />
-                Esito: <span style={{ fontWeight: 'bold', color: e.fattibile ? 'green' : 'red' }}>{e.fattibile ? 'Fattibile' : 'Non Fattibile'}</span>
+                <span>Tasso: {e.tasso}</span><br />
+                <span>Rata: €{e.rata}</span><br />
+                <span>LTV: {e.ltv}</span><br />
+                <span>Esito: <strong style={{ color: e.fattibile ? 'green' : 'red' }}>{e.fattibile ? '✅ Fattibile' : '❌ Non Fattibile'}</strong></span>
               </div>
             ))}
           </div>
