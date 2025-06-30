@@ -1,145 +1,173 @@
 import { useState } from 'react';
 
+function calcolaRata(importo, tassoAnnuo, durataAnni) {
+  const r = tassoAnnuo / 12;
+  const n = durataAnni * 12;
+  return (importo * r) / (1 - Math.pow(1 + r, -n));
+}
+
 export default function Home() {
-  const [dati, setDati] = useState({
+  const [form, setForm] = useState({
     reddito1: '',
     rata1: '',
+    dueRichiedenti: false,
     reddito2: '',
     rata2: '',
     eta: '',
     durata: '',
-    mutuo: '',
+    importo: '',
     immobile: '',
-    dueRichiedenti: false,
-    carico: '1'
+    carico: '1',
+    primaCasa: false,
+    under36: false
   });
 
   const [esiti, setEsiti] = useState([]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setDati({
-      ...dati,
+    setForm({
+      ...form,
       [name]: type === 'checkbox' ? checked : value
     });
   };
 
-  const calcola = () => {
-    const r1 = parseFloat(dati.reddito1 || '0');
-    const r2 = parseFloat(dati.reddito2 || '0');
-    const rt1 = parseFloat(dati.rata1 || '0');
-    const rt2 = parseFloat(dati.rata2 || '0');
-    const redditoTot = r1 + r2;
-    const rateTotali = rt1 + rt2;
-    const durata = parseInt(dati.durata);
-    const eta = parseInt(dati.eta);
+  const valuta = () => {
+    const reddito1 = parseFloat(form.reddito1) || 0;
+    const reddito2 = form.dueRichiedenti ? parseFloat(form.reddito2) || 0 : 0;
+    const rata1 = parseFloat(form.rata1) || 0;
+    const rata2 = form.dueRichiedenti ? parseFloat(form.rata2) || 0 : 0;
+    const redditoTot = reddito1 + reddito2;
+    const rataTot = rata1 + rata2;
+
+    const eta = parseInt(form.eta);
+    const durata = parseInt(form.durata);
+    const importo = parseFloat(form.importo);
+    const immobile = parseFloat(form.immobile);
+    const carico = parseInt(form.carico);
+    const ltv = (importo / immobile) * 100;
+    const redditoDisponibile = redditoTot - rataTot;
     const etaFine = eta + durata;
-    const valore = parseFloat(dati.immobile);
-    const importo = parseFloat(dati.mutuo);
-    const carichi = parseInt(dati.carico);
-    const ltv = (importo / valore) * 100;
 
-    const banche = [];
-
-    const tassi = {
-      ING: 0.039,
-      CheBanca: 0.032,
-      MPS: 0.031,
-      BNL: ltv > 80 ? (eta < 36 ? 0.0325 : 0.0345) : 0.032,
-      "Banco di Sardegna": 0.034
-    };
-
-    const calcolaRata = (tasso) => ((importo * tasso) / 12).toFixed(2);
-    const soglie = {
-      ING: [617, 902, 1158, 1402, 1629],
-      CB: [734, 1035, 1304, 1572, 1816],
-      MPS: [800, 1000, 1200, 1350, 1600],
-      BNL: (n) => 1000 + (n - 1) * 250
-    };
-
-    const soglia = (banca) => {
-      const num = carichi;
-      if (banca === 'BNL') return soglie.BNL(num);
-      if (banca === 'CheBanca') return soglie.CB[num - 1] || 1816;
-      if (banca === 'ING') return soglie.ING[num - 1] || 1629;
-      return soglie.MPS[num - 1] || 1600;
-    };
-
-    const redditoDisponibile = redditoTot - rateTotali;
-
-    const condizioni = {
-      ING: () => ltv <= 95 && importo && redditoDisponibile - calcolaRata(tassi.ING) >= soglia('ING') && (importo * tassi.ING / 12) / redditoTot <= 0.55,
-      CheBanca: () => ltv <= 95 && redditoDisponibile - calcolaRata(tassi.CheBanca) >= soglia('CheBanca') && (importo * tassi.CheBanca / 12) / redditoTot <= 0.4,
-      MPS: () => ltv <= 80 && etaFine <= 75 && redditoDisponibile - calcolaRata(tassi.MPS) >= soglia('MPS') && (importo * tassi.MPS / 12) / redditoTot <= 0.33,
-      BNL: () => {
-        let maxRr = 0.4;
-        if (ltv > 80 && dati.dueRichiedenti) maxRr = 0.35;
-        if (ltv > 80 && !dati.dueRichiedenti) maxRr = 0.3;
-        if (ltv <= 80 && dati.dueRichiedenti) maxRr = 0.45;
-        return ltv <= 95 && redditoDisponibile - calcolaRata(tassi.BNL) >= soglia('BNL') && (importo * tassi.BNL / 12) / redditoTot <= maxRr;
+    const banche = [
+      {
+        nome: 'ING',
+        tasso: 0.039,
+        maxRr: 0.55,
+        soglia: [617, 902, 1158, 1402, 1629][carico - 1] || 1629,
+        maxLtv: 95
       },
-      "Banco di Sardegna": () => ltv <= 95 && redditoDisponibile - calcolaRata(tassi["Banco di Sardegna"]) >= soglia('MPS') && (importo * tassi["Banco di Sardegna"] / 12) / redditoTot <= 0.4
-    };
+      {
+        nome: 'CheBanca',
+        tasso: 0.032,
+        maxRr: 0.4,
+        soglia: [734, 1035, 1304, 1572, 1816][carico - 1] || 1816,
+        maxLtv: 95
+      },
+      {
+        nome: 'MPS',
+        tasso: 0.031,
+        maxRr: 0.33,
+        soglia: [800, 1000, 1200, 1350, 1600][carico - 1] || 1600,
+        maxLtv: form.primaCasa ? 95 : 80,
+        maxEta: 75
+      },
+      {
+        nome: 'BNL',
+        tasso: ltv > 80 ? (form.under36 ? 0.0325 : 0.0345) : 0.032,
+        maxRr:
+          ltv > 80
+            ? form.dueRichiedenti
+              ? 0.35
+              : 0.3
+            : form.dueRichiedenti
+            ? 0.45
+            : 0.4,
+        soglia: 1000 + (carico - 1) * 250,
+        maxLtv: 95
+      },
+      {
+        nome: 'Banco di Sardegna',
+        tasso: 0.034,
+        maxRr: 0.4,
+        soglia: [800, 1000, 1200, 1350, 1600][carico - 1] || 1600,
+        maxLtv: 95
+      }
+    ];
 
-    for (let banca in tassi) {
-      const rata = calcolaRata(tassi[banca]);
-      banche.push({
-        banca,
-        rata,
-        fattibile: condizioni[banca]()
-      });
-    }
+    const risultati = banche.map((banca) => {
+      const rata = calcolaRata(importo, banca.tasso, durata);
+      const rr = rata / redditoTot;
+      const sogliaOk = redditoDisponibile - rata >= banca.soglia;
+      const etaOk = banca.maxEta ? etaFine <= banca.maxEta : true;
+      const fattibile = rr <= banca.maxRr && ltv <= banca.maxLtv && sogliaOk && etaOk;
 
-    setEsiti(banche);
+      return {
+        banca: banca.nome,
+        tasso: (banca.tasso * 100).toFixed(2) + '%',
+        rata: rata.toFixed(2),
+        ltv: ltv.toFixed(1) + '%',
+        fattibile
+      };
+    });
+
+    setEsiti(risultati);
   };
 
   return (
-    <div style={{ maxWidth: 700, margin: '0 auto', padding: 20, fontFamily: 'Arial' }}>
-      <h1 style={{ fontSize: '24px', marginBottom: 10 }}>Check Mutuo – Preventivatore</h1>
+    <div style={{ maxWidth: 700, margin: '0 auto', fontFamily: 'Arial', padding: 20 }}>
+      <h1>Preventivatore Mutuo</h1>
 
-      <label>Reddito Richiedente 1</label>
-      <input name="reddito1" onChange={handleChange} value={dati.reddito1} />
-      <label>Rata esistente 1</label>
-      <input name="rata1" onChange={handleChange} value={dati.rata1} />
+      <label>Reddito richiedente 1</label>
+      <input name="reddito1" onChange={handleChange} value={form.reddito1} />
+      <label>Rata in corso 1</label>
+      <input name="rata1" onChange={handleChange} value={form.rata1} />
 
       <label>
-        <input type="checkbox" name="dueRichiedenti" checked={dati.dueRichiedenti} onChange={handleChange} /> Aggiungi secondo richiedente
+        <input type="checkbox" name="dueRichiedenti" checked={form.dueRichiedenti} onChange={handleChange} /> Aggiungi secondo richiedente
       </label>
 
-      {dati.dueRichiedenti && (
+      {form.dueRichiedenti && (
         <>
-          <label>Reddito Richiedente 2</label>
-          <input name="reddito2" onChange={handleChange} value={dati.reddito2} />
-          <label>Rata esistente 2</label>
-          <input name="rata2" onChange={handleChange} value={dati.rata2} />
+          <label>Reddito richiedente 2</label>
+          <input name="reddito2" onChange={handleChange} value={form.reddito2} />
+          <label>Rata in corso 2</label>
+          <input name="rata2" onChange={handleChange} value={form.rata2} />
         </>
       )}
 
-      <label>Persone a carico totali</label>
-      <input name="carico" onChange={handleChange} value={dati.carico} />
-
-      <label>Età richiedente</label>
-      <input name="eta" onChange={handleChange} value={dati.eta} />
+      <label>Età richiedente più anziano</label>
+      <input name="eta" onChange={handleChange} value={form.eta} />
       <label>Durata mutuo (anni)</label>
-      <input name="durata" onChange={handleChange} value={dati.durata} />
-      <label>Importo mutuo</label>
-      <input name="mutuo" onChange={handleChange} value={dati.mutuo} />
+      <input name="durata" onChange={handleChange} value={form.durata} />
+      <label>Importo mutuo richiesto</label>
+      <input name="importo" onChange={handleChange} value={form.importo} />
       <label>Valore immobile</label>
-      <input name="immobile" onChange={handleChange} value={dati.immobile} />
+      <input name="immobile" onChange={handleChange} value={form.immobile} />
 
-      <button onClick={calcola} style={{ marginTop: 20 }}>Calcola</button>
+      <label>Persone a carico totali</label>
+      <input name="carico" onChange={handleChange} value={form.carico} />
 
-      {esiti.length > 0 && (
-        <div style={{ marginTop: 30 }}>
-          {esiti.map((e, i) => (
-            <div key={i} style={{ border: '1px solid #ccc', padding: 10, marginBottom: 10 }}>
-              <strong>{e.banca}</strong><br />
-              Rata stimata: €{e.rata}<br />
-              Esito: <span style={{ color: e.fattibile ? 'green' : 'red', fontWeight: 'bold' }}>{e.fattibile ? 'Fattibile' : 'Non fattibile'}</span>
-            </div>
-          ))}
-        </div>
-      )}
+      <label>
+        <input type="checkbox" name="primaCasa" checked={form.primaCasa} onChange={handleChange} /> Prima casa
+      </label>
+      <label>
+        <input type="checkbox" name="under36" checked={form.under36} onChange={handleChange} /> Under 36
+      </label>
+
+      <button style={{ marginTop: 20 }} onClick={valuta}>Calcola</button>
+
+      <div style={{ marginTop: 30 }}>
+        {esiti.map((e, i) => (
+          <div key={i} style={{ border: '1px solid #ccc', padding: 10, marginBottom: 10 }}>
+            <strong>{e.banca}</strong><br />
+            Tasso: {e.tasso}<br />
+            Rata stimata: €{e.rata}<br />
+            LTV: {e.ltv}<br />
+            Esito: <span style={{ color: e.fattibile ? 'green' : 'red', fontWeight: 'bold' }}>{e.fattibile ? '✅ Fattibile' : '❌ Non Fattibile'}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
