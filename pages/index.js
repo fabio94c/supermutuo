@@ -2,83 +2,144 @@ import { useState } from 'react';
 
 export default function Home() {
   const [dati, setDati] = useState({
-    reddito: '',
-    rataEsistente: '',
+    reddito1: '',
+    rata1: '',
+    reddito2: '',
+    rata2: '',
     eta: '',
     durata: '',
     mutuo: '',
     immobile: '',
-    richiedenti: 1
+    dueRichiedenti: false,
+    carico: '1'
   });
 
   const [esiti, setEsiti] = useState([]);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setDati({ ...dati, [name]: value });
+    const { name, value, type, checked } = e.target;
+    setDati({
+      ...dati,
+      [name]: type === 'checkbox' ? checked : value
+    });
   };
 
-  const calcolaBanche = () => {
-    const redditoNetto = parseFloat(dati.reddito) - parseFloat(dati.rataEsistente || 0);
-    const rataSimulata = ((parseFloat(dati.mutuo) * 0.032) / 12);
-    const ltv = (parseFloat(dati.mutuo) / parseFloat(dati.immobile)) * 100;
-    const durataAnni = parseInt(dati.durata);
+  const calcola = () => {
+    const r1 = parseFloat(dati.reddito1 || '0');
+    const r2 = parseFloat(dati.reddito2 || '0');
+    const rt1 = parseFloat(dati.rata1 || '0');
+    const rt2 = parseFloat(dati.rata2 || '0');
+    const redditoTot = r1 + r2;
+    const rateTotali = rt1 + rt2;
+    const durata = parseInt(dati.durata);
     const eta = parseInt(dati.eta);
-    const richiedenti = parseInt(dati.richiedenti);
-    const etaFineMutuo = eta + durataAnni;
+    const etaFine = eta + durata;
+    const valore = parseFloat(dati.immobile);
+    const importo = parseFloat(dati.mutuo);
+    const carichi = parseInt(dati.carico);
+    const ltv = (importo / valore) * 100;
 
     const banche = [];
 
-    const sogliaSussistenzaING = [617, 902, 1158, 1402, 1629][richiedenti - 1] || 1629;
-    const redditoResiduoING = redditoNetto - rataSimulata;
-    const fattibileING = ltv <= 95 && rataSimulata / redditoNetto <= 0.55 && redditoResiduoING >= sogliaSussistenzaING;
-    banche.push({ nome: "ING", fattibile: fattibileING, rata: rataSimulata.toFixed(2), ltv: ltv.toFixed(2) });
+    const tassi = {
+      ING: 0.039,
+      CheBanca: 0.032,
+      MPS: 0.031,
+      BNL: ltv > 80 ? (eta < 36 ? 0.0325 : 0.0345) : 0.032,
+      "Banco di Sardegna": 0.034
+    };
 
-    const sogliaSussistenzaCB = [734, 1035, 1304, 1572, 1816][richiedenti - 1] || 1816;
-    const redditoResiduoCB = redditoNetto - rataSimulata;
-    const fattibileCB = ltv <= 95 && rataSimulata / redditoNetto <= 0.4 && redditoResiduoCB >= sogliaSussistenzaCB;
-    banche.push({ nome: "CheBanca", fattibile: fattibileCB, rata: rataSimulata.toFixed(2), ltv: ltv.toFixed(2) });
+    const calcolaRata = (tasso) => ((importo * tasso) / 12).toFixed(2);
+    const soglie = {
+      ING: [617, 902, 1158, 1402, 1629],
+      CB: [734, 1035, 1304, 1572, 1816],
+      MPS: [800, 1000, 1200, 1350, 1600],
+      BNL: (n) => 1000 + (n - 1) * 250
+    };
 
-    const sogliaSussistenzaMPS = [800, 1000, 1200, 1350, 1600][richiedenti - 1] || 1600;
-    const fattibileMPS = ltv <= 80 && rataSimulata / redditoNetto <= 0.33 && etaFineMutuo <= 75 && (redditoNetto - rataSimulata >= sogliaSussistenzaMPS);
-    banche.push({ nome: "MPS", fattibile: fattibileMPS, rata: rataSimulata.toFixed(2), ltv: ltv.toFixed(2) });
+    const soglia = (banca) => {
+      const num = carichi;
+      if (banca === 'BNL') return soglie.BNL(num);
+      if (banca === 'CheBanca') return soglie.CB[num - 1] || 1816;
+      if (banca === 'ING') return soglie.ING[num - 1] || 1629;
+      return soglie.MPS[num - 1] || 1600;
+    };
 
-    let sogliaBNL = 1000 + (richiedenti - 1) * 250;
-    let maxRr = 0.4;
-    if (ltv > 80 && richiedenti === 1) maxRr = 0.3;
-    if (ltv > 80 && richiedenti === 2) maxRr = 0.35;
-    if (ltv <= 80 && richiedenti === 2) maxRr = 0.45;
-    const fattibileBNL = ltv <= 95 && rataSimulata / redditoNetto <= maxRr && (redditoNetto - rataSimulata >= sogliaBNL);
-    banche.push({ nome: "BNL", fattibile: fattibileBNL, rata: rataSimulata.toFixed(2), ltv: ltv.toFixed(2) });
+    const redditoDisponibile = redditoTot - rateTotali;
 
-    const sogliaSussistenzaSardegna = sogliaSussistenzaMPS;
-    const fattibileSardegna = ltv <= 95 && rataSimulata / redditoNetto <= 0.4 && (redditoNetto - rataSimulata >= sogliaSussistenzaSardegna);
-    banche.push({ nome: "Banco di Sardegna", fattibile: fattibileSardegna, rata: rataSimulata.toFixed(2), ltv: ltv.toFixed(2) });
+    const condizioni = {
+      ING: () => ltv <= 95 && importo && redditoDisponibile - calcolaRata(tassi.ING) >= soglia('ING') && (importo * tassi.ING / 12) / redditoTot <= 0.55,
+      CheBanca: () => ltv <= 95 && redditoDisponibile - calcolaRata(tassi.CheBanca) >= soglia('CheBanca') && (importo * tassi.CheBanca / 12) / redditoTot <= 0.4,
+      MPS: () => ltv <= 80 && etaFine <= 75 && redditoDisponibile - calcolaRata(tassi.MPS) >= soglia('MPS') && (importo * tassi.MPS / 12) / redditoTot <= 0.33,
+      BNL: () => {
+        let maxRr = 0.4;
+        if (ltv > 80 && dati.dueRichiedenti) maxRr = 0.35;
+        if (ltv > 80 && !dati.dueRichiedenti) maxRr = 0.3;
+        if (ltv <= 80 && dati.dueRichiedenti) maxRr = 0.45;
+        return ltv <= 95 && redditoDisponibile - calcolaRata(tassi.BNL) >= soglia('BNL') && (importo * tassi.BNL / 12) / redditoTot <= maxRr;
+      },
+      "Banco di Sardegna": () => ltv <= 95 && redditoDisponibile - calcolaRata(tassi["Banco di Sardegna"]) >= soglia('MPS') && (importo * tassi["Banco di Sardegna"] / 12) / redditoTot <= 0.4
+    };
+
+    for (let banca in tassi) {
+      const rata = calcolaRata(tassi[banca]);
+      banche.push({
+        banca,
+        rata,
+        fattibile: condizioni[banca]()
+      });
+    }
 
     setEsiti(banche);
   };
 
   return (
-    <div style={{ maxWidth: '600px', margin: '0 auto', padding: '20px' }}>
-      <h1>Check Mutuo – Preventivatore</h1>
+    <div style={{ maxWidth: 700, margin: '0 auto', padding: 20, fontFamily: 'Arial' }}>
+      <h1 style={{ fontSize: '24px', marginBottom: 10 }}>Check Mutuo – Preventivatore</h1>
 
-      <input name="reddito" placeholder="Reddito mensile" onChange={handleChange} />
-      <input name="rataEsistente" placeholder="Rata esistente" onChange={handleChange} />
-      <input name="eta" placeholder="Età richiedente" onChange={handleChange} />
-      <input name="durata" placeholder="Durata (anni)" onChange={handleChange} />
-      <input name="mutuo" placeholder="Importo mutuo" onChange={handleChange} />
-      <input name="immobile" placeholder="Valore immobile" onChange={handleChange} />
-      <input name="richiedenti" placeholder="Numero richiedenti" onChange={handleChange} />
+      <label>Reddito Richiedente 1</label>
+      <input name="reddito1" onChange={handleChange} value={dati.reddito1} />
+      <label>Rata esistente 1</label>
+      <input name="rata1" onChange={handleChange} value={dati.rata1} />
 
-      <button onClick={calcolaBanche}>Calcola</button>
+      <label>
+        <input type="checkbox" name="dueRichiedenti" checked={dati.dueRichiedenti} onChange={handleChange} /> Aggiungi secondo richiedente
+      </label>
 
-      {esiti.map((b, i) => (
-        <div key={i} style={{ marginTop: '10px', border: '1px solid #ccc', padding: '10px' }}>
-          <strong>{b.nome}</strong><br />
-          Rata: €{b.rata} – LTV: {b.ltv}%<br />
-          Esito: {b.fattibile ? '✅ Fattibile' : '❌ Non Fattibile'}
+      {dati.dueRichiedenti && (
+        <>
+          <label>Reddito Richiedente 2</label>
+          <input name="reddito2" onChange={handleChange} value={dati.reddito2} />
+          <label>Rata esistente 2</label>
+          <input name="rata2" onChange={handleChange} value={dati.rata2} />
+        </>
+      )}
+
+      <label>Persone a carico totali</label>
+      <input name="carico" onChange={handleChange} value={dati.carico} />
+
+      <label>Età richiedente</label>
+      <input name="eta" onChange={handleChange} value={dati.eta} />
+      <label>Durata mutuo (anni)</label>
+      <input name="durata" onChange={handleChange} value={dati.durata} />
+      <label>Importo mutuo</label>
+      <input name="mutuo" onChange={handleChange} value={dati.mutuo} />
+      <label>Valore immobile</label>
+      <input name="immobile" onChange={handleChange} value={dati.immobile} />
+
+      <button onClick={calcola} style={{ marginTop: 20 }}>Calcola</button>
+
+      {esiti.length > 0 && (
+        <div style={{ marginTop: 30 }}>
+          {esiti.map((e, i) => (
+            <div key={i} style={{ border: '1px solid #ccc', padding: 10, marginBottom: 10 }}>
+              <strong>{e.banca}</strong><br />
+              Rata stimata: €{e.rata}<br />
+              Esito: <span style={{ color: e.fattibile ? 'green' : 'red', fontWeight: 'bold' }}>{e.fattibile ? 'Fattibile' : 'Non fattibile'}</span>
+            </div>
+          ))}
         </div>
-      ))}
+      )}
     </div>
   );
 }
