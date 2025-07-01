@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import Head from 'next/head';
 import emailjs from '@emailjs/browser';
-import { useEffect, useRef } from 'react';
 
 function calcolaRata(importo, tasso, durata) {
   const r = tasso / 12;
@@ -10,7 +9,6 @@ function calcolaRata(importo, tasso, durata) {
 }
 
 export default function Home() {
-  const formRef = useRef();
   const [form, setForm] = useState({
     nome: '',
     reddito1: '', rata1: '',
@@ -84,7 +82,7 @@ export default function Home() {
 
     const contenuto = {
       ...form,
-      banche: risultati.map(r => `${r.banca}: ${r.fattibile}, Rata: €${r.rata}, Tasso: ${r.tasso}, LTV: ${r.ltv}`).join('\n')
+      risultato: risultati.map(r => `${r.banca}: ${r.fattibile}, Rata: €${r.rata}, Tasso: ${r.tasso}, LTV: ${r.ltv}`).join('\n')
     };
 
     emailjs.send('service_ds8s53n', 'template_ar5ij3f', contenuto, '07kHc8vY52WJr-iQx')
