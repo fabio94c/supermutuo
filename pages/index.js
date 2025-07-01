@@ -87,7 +87,7 @@ export default function Home() {
 
     emailjs.send('service_ds8s53n', 'template_ar5ij3f', contenuto, '07kHc8vY52WJr-iQx')
       .then(() => setEmailInviata(true))
-      .catch(() => alert('Errore nell'invio email'));
+      .catch(() => alert("Errore nell'invio email"));
   };
 
   return (
