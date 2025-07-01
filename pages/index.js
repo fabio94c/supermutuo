@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Head from 'next/head';
+import emailjs from '@emailjs/browser';
 
 function calcolaRata(importo, tasso, durata) {
   const r = tasso / 12;
@@ -9,6 +10,7 @@ function calcolaRata(importo, tasso, durata) {
 
 export default function Home() {
   const [form, setForm] = useState({
+    nome: '',
     reddito1: '', rata1: '',
     due: false, reddito2: '', rata2: '',
     eta: '', durata: '', importo: '', immobile: '',
@@ -16,6 +18,7 @@ export default function Home() {
   });
 
   const [esiti, setEsiti] = useState([]);
+  const [emailInviata, setEmailInviata] = useState(false);
 
   const cambia = (e) => {
     const { name, value, checked, type } = e.target;
@@ -72,40 +75,48 @@ export default function Home() {
         tasso: (b.tasso * 100).toFixed(2) + '%',
         rata: rata.toFixed(2),
         ltv: ltv.toFixed(1) + '%',
-        fattibile: esito
+        fattibile: esito ? '✅ Fattibile' : '❌ Non Fattibile'
       };
     });
     setEsiti(risultati);
+
+    const contenuto = {
+      ...form,
+      banche: risultati
+    };
+
+    emailjs.send('service_ds8s53n', 'template_ar5ij3f', contenuto, '07kHc8vY52WJr-iQx')
+      .then(() => setEmailInviata(true))
+      .catch(() => alert('Errore nell'invio email'));
   };
 
   return (
     <>
       <Head>
-        <title>SuperMutuo - Simulazione Mutuo</title>
+        <title>Simulatore Mutuo</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       </Head>
-      <main style={{ maxWidth: 600, margin: '0 auto', padding: '2rem', fontFamily: 'Arial, sans-serif', background: '#f4f9ff', borderRadius: '10px', boxShadow: '0 2px 10px rgba(0,0,0,0.1)' }}>
-        <h1 style={{ fontSize: '1.8rem', marginBottom: '1rem', color: '#0070f3' }}>💼 Simulatore Mutuo</h1>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <label>Reddito mensile richiedente 1</label>
+      <main style={{ maxWidth: 600, margin: '0 auto', padding: '1rem', fontFamily: 'Arial, sans-serif' }}>
+        <h1 style={{ color: '#0070f3' }}>💼 Simulatore Mutuo</h1>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <label>Nome e Cognome</label>
+          <input name="nome" value={form.nome} onChange={cambia} />
+          <label>Reddito 1</label>
           <input name="reddito1" value={form.reddito1} onChange={cambia} />
-          <label>Rata in corso richiedente 1</label>
+          <label>Rata 1</label>
           <input name="rata1" value={form.rata1} onChange={cambia} />
-          <label>
-            <input type="checkbox" name="due" checked={form.due} onChange={cambia} /> Aggiungi secondo richiedente
-          </label>
-          {form.due && (
-            <>
-              <label>Reddito mensile richiedente 2</label>
-              <input name="reddito2" value={form.reddito2} onChange={cambia} />
-              <label>Rata in corso richiedente 2</label>
-              <input name="rata2" value={form.rata2} onChange={cambia} />
-            </>
-          )}
-          <label>Età richiedente più anziano</label>
+          <label><input type="checkbox" name="due" checked={form.due} onChange={cambia} /> Aggiungi secondo richiedente</label>
+          {form.due && <>
+            <label>Reddito 2</label>
+            <input name="reddito2" value={form.reddito2} onChange={cambia} />
+            <label>Rata 2</label>
+            <input name="rata2" value={form.rata2} onChange={cambia} />
+          </>}
+          <label>Età</label>
           <input name="eta" value={form.eta} onChange={cambia} />
-          <label>Durata mutuo (anni)</label>
+          <label>Durata (anni)</label>
           <input name="durata" value={form.durata} onChange={cambia} />
-          <label>Importo mutuo richiesto</label>
+          <label>Importo mutuo</label>
           <input name="importo" value={form.importo} onChange={cambia} />
           <label>Valore immobile</label>
           <input name="immobile" value={form.immobile} onChange={cambia} />
@@ -113,19 +124,21 @@ export default function Home() {
           <input name="carico" value={form.carico} onChange={cambia} />
           <label><input type="checkbox" name="primaCasa" checked={form.primaCasa} onChange={cambia} /> Prima casa</label>
           <label><input type="checkbox" name="under36" checked={form.under36} onChange={cambia} /> Under 36</label>
-          <button onClick={calcola} style={{ backgroundColor: '#0070f3', color: 'white', padding: '10px 20px', border: 'none', borderRadius: '5px', cursor: 'pointer', marginTop: '20px' }}>Calcola</button>
+          <button onClick={calcola} style={{ backgroundColor: '#0070f3', color: 'white', padding: '10px', borderRadius: '5px', border: 'none', marginTop: '20px' }}>Calcola e Invia</button>
         </div>
+
+        {emailInviata && <p style={{ color: 'green', marginTop: '20px' }}>📧 Email inviata con successo!</p>}
 
         {esiti.length > 0 && (
           <div style={{ marginTop: 30 }}>
             <h2 style={{ color: '#0070f3' }}>Risultati</h2>
             {esiti.map((e, i) => (
-              <div key={i} style={{ backgroundColor: 'white', borderLeft: `5px solid ${e.fattibile ? 'green' : 'red'}`, padding: 10, marginBottom: 10, borderRadius: '5px' }}>
+              <div key={i} style={{ backgroundColor: 'white', borderLeft: `5px solid ${e.fattibile === '✅ Fattibile' ? 'green' : 'red'}`, padding: 10, marginBottom: 10, borderRadius: '5px' }}>
                 <strong>{e.banca}</strong><br />
                 <span>Tasso: {e.tasso}</span><br />
                 <span>Rata: €{e.rata}</span><br />
                 <span>LTV: {e.ltv}</span><br />
-                <span>Esito: <strong style={{ color: e.fattibile ? 'green' : 'red' }}>{e.fattibile ? '✅ Fattibile' : '❌ Non Fattibile'}</strong></span>
+                <span>Esito: <strong>{e.fattibile}</strong></span>
               </div>
             ))}
           </div>
